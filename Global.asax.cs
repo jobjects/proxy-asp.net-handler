@@ -13,7 +13,9 @@ namespace PdfHighlighterNetHandler
         void Application_Start(object sender, EventArgs e)
         {
             // Code that runs on application startup
-
+            log4net.Config.XmlConfigurator.Configure();
+            log4net.ILog log = log4net.LogManager.GetLogger(typeof(Global));
+            log.Info("Application started.");
         }
 
         void Application_End(object sender, EventArgs e)
