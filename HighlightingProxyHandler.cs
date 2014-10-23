@@ -49,12 +49,12 @@ namespace PDFHighlighter
             HttpWebResponse serverResponse = null;
 
             // SEND REQUEST TO HIGHLIGHTER...
-            if (!string.IsNullOrWhiteSpace(hlService))
+            if (!string.IsNullOrEmpty(hlService))
             {
                 string url = hlService;
                 string qs = context.Request.QueryString.ToString();
 
-                if (!string.IsNullOrWhiteSpace(hlLocalPathPrefix))
+                if (!string.IsNullOrEmpty(hlLocalPathPrefix))
                 {
                     int ind = context.Request.FilePath.IndexOf(hlLocalPathPrefix);
                     if (ind != -1)
@@ -101,7 +101,7 @@ namespace PDFHighlighter
                             log.Info("received redirect to: " + redirectUri);
                         }
 
-                        if (!string.IsNullOrWhiteSpace(hlRemotePathPrefix))
+                        if (!string.IsNullOrEmpty(hlRemotePathPrefix))
                         {
                             int ind = redirectUri.IndexOf(hlRemotePathPrefix);
                             if (ind != -1)
@@ -156,7 +156,8 @@ namespace PDFHighlighter
             copyHeadersOfInterestForResponse(serverResponse.Headers, response);
             Stream stream = serverResponse.GetResponseStream();
 
-            stream.CopyTo(response.OutputStream);
+            //stream.CopyTo(response.OutputStream); // not available in .NET 3.5
+            CopyStream(stream, response.OutputStream);
             stream.Close();
             //serverResponse.Close();
             response.End();
@@ -197,7 +198,8 @@ namespace PDFHighlighter
                             DateTime ifDate;
                             DateTime.TryParse(value, out ifDate);
                             if (ifDate != DateTime.MinValue)
-                                request.Date = ifDate;
+                                //request.Date = ifDate; // not available in .NET 3.5
+                                request.Headers.Add(key, ifDate.ToUniversalTime().ToString("r"));
                             else
                                 log.Warn("Not able to pass unparsable Date: " + value);
                         }
@@ -294,21 +296,31 @@ namespace PDFHighlighter
                 {
                     if (log.IsDebugEnabled)
                         log.Debug("  add range: " + currentRange[START]);
-                    request.AddRange(long.Parse(currentRange[START]));
+                    request.AddRange(int.Parse(currentRange[START]));
                 }
                 else if (string.IsNullOrEmpty(currentRange[START])) // No start specified
                 {
                     if (log.IsDebugEnabled)
                         log.Debug("  add range: " + currentRange[END]);
-                    request.AddRange(-long.Parse(currentRange[END]));
+                    request.AddRange(-int.Parse(currentRange[END]));
                 }
                 else
                 {
                     if (log.IsDebugEnabled)
                         log.Debug("  add range: " + currentRange[START] + "-" + currentRange[END]);
-                    request.AddRange(long.Parse(currentRange[START]), long.Parse(currentRange[END]));
+                    request.AddRange(int.Parse(currentRange[START]), int.Parse(currentRange[END]));
                 }
             } 
+        }
+
+        public static void CopyStream(Stream input, Stream output)
+        {
+            byte[] buffer = new byte[32768];
+            int read;
+            while ((read = input.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                output.Write(buffer, 0, read);
+            }
         }
     }
 }
