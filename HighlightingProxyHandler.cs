@@ -6,7 +6,7 @@ using System.IO;
 using System.Web.SessionState;
 using System.Collections.Specialized;
 
-namespace HollidayWebApp
+namespace PDFHighlighter
 {
     public class HighlightingProxyHandler : IHttpHandler, IReadOnlySessionState
     {
