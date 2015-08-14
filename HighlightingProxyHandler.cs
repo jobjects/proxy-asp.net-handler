@@ -81,6 +81,7 @@ namespace PDFHighlighter
 
                 copyHeadersOfInterestForProxying(context.Request.Headers, webRequest);
                 webRequest.Method = context.Request.HttpMethod;
+                webRequest.UserAgent = context.Request.UserAgent;
 
                 // don't auto handle redirect as we want user to receive URL that opens first matching page
                 webRequest.AllowAutoRedirect = false;
