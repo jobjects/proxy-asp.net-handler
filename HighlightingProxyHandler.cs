@@ -45,7 +45,6 @@ namespace PDFHighlighter
         {
             HttpResponse response = context.Response;
 
-            string altUrl = context.Request.Params["altUrl"];
             HttpWebResponse serverResponse = null;
 
             // SEND REQUEST TO HIGHLIGHTER...
@@ -144,8 +143,14 @@ namespace PDFHighlighter
             // Exit if invalid response
             if (serverResponse == null)
             {
+                string altUrl = context.Request.Params["altUrl"];
+                if (altUrl == null)
+                    altUrl = context.Request.Params["uri"];
                 if (altUrl != null)
+                {
+                    log.Warn("Due to invalid highlighter response redirecting request to: " + altUrl);
                     response.Redirect(altUrl, true);
+                }
                 return;
             }
 
