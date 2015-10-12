@@ -5,6 +5,7 @@ using System.Net;
 using System.IO;
 using System.Web.SessionState;
 using System.Collections.Specialized;
+using System.Text.RegularExpressions;
 
 namespace PDFHighlighter
 {
@@ -20,12 +21,18 @@ namespace PDFHighlighter
         string hlLocalPathPrefix;
         string hlRemotePathPrefix;
         bool hlAddAppPathToRedirect = true;
+        bool autoPathAdjust = true;
+        Regex highlighterRedirectionOwnPaths = new Regex("/?doc/|/?viewer/"); // TODO parameter for this
 
         public HighlightingProxyHandler()
         {
             hlService = WebConfigurationManager.AppSettings["highlightingProxyTo"];
+
             hlLocalPathPrefix = WebConfigurationManager.AppSettings["highlightingProxyLocalPathPrefix"];
             hlRemotePathPrefix = WebConfigurationManager.AppSettings["highlightingProxyRemotePathPrefix"];
+            //if (!string.IsNullOrWhiteSpace(hlLocalPathPrefix) && !string.IsNullOrWhiteSpace(hlRemotePathPrefix))
+            if (hlLocalPathPrefix != null || hlRemotePathPrefix != null)
+                autoPathAdjust = false;
 
             string addAppPath = WebConfigurationManager.AppSettings["highlightingProxyAddAppPathToRedirect"];
             if (addAppPath != null && ("false".Equals(addAppPath) || "no".Equals(addAppPath)))
@@ -46,6 +53,7 @@ namespace PDFHighlighter
             HttpResponse response = context.Response;
 
             HttpWebResponse serverResponse = null;
+            WebException error = null;
 
             // SEND REQUEST TO HIGHLIGHTER...
             if (!string.IsNullOrWhiteSpace(hlService))
@@ -53,7 +61,11 @@ namespace PDFHighlighter
                 string url = hlService;
                 string qs = context.Request.QueryString.ToString();
 
-                if (!string.IsNullOrWhiteSpace(hlLocalPathPrefix))
+                if (autoPathAdjust)
+                {
+                    url += context.Request.AppRelativeCurrentExecutionFilePath.Substring(1);
+                }
+                else if (!string.IsNullOrWhiteSpace(hlLocalPathPrefix))
                 {
                     int ind = context.Request.FilePath.IndexOf(hlLocalPathPrefix);
                     if (ind != -1)
@@ -62,12 +74,12 @@ namespace PDFHighlighter
                         url = url + p;
                     }
                 }
-                else
+                /*else
                 {
                     url += context.Request.FilePath;
-                }
+                }*/
 
-                url += context.Request.PathInfo;
+                //url += context.Request.PathInfo; // removing as always empty in our use case
 
                 if (!string.IsNullOrEmpty(qs))
                     url += "?" + qs;
@@ -93,46 +105,64 @@ namespace PDFHighlighter
                     // check if redirection 
                     if ((int)serverResponse.StatusCode >= 300 && (int)serverResponse.StatusCode < 400)
                     {
-                        string redirectUri = serverResponse.Headers["Location"];
-
-                        if (log.IsInfoEnabled)
-                        {
-                            log.Info("Request to: " + url);
-                            log.Info("received redirect to: " + redirectUri);
-                        }
-
-                        if (!string.IsNullOrWhiteSpace(hlRemotePathPrefix))
-                        {
-                            int ind = redirectUri.IndexOf(hlRemotePathPrefix);
-                            if (ind != -1)
-                            {
-                                redirectUri = (hlAddAppPathToRedirect ? context.Request.ApplicationPath : "") + 
-                                    hlLocalPathPrefix + redirectUri.Substring(ind + hlRemotePathPrefix.Length);
-                            }
-                        }
-
-                        if (log.IsInfoEnabled)
-                            log.Info("Redirect request to: " + redirectUri);
-
                         response.StatusCode = (int)serverResponse.StatusCode;
                         copyHeadersOfInterestForResponse(serverResponse.Headers, response);
-                        response.RedirectLocation = redirectUri;
+
+                        string redirectUri = serverResponse.Headers["Location"];
+                        if (!string.IsNullOrWhiteSpace(redirectUri))
+                        {
+                            if (log.IsInfoEnabled)
+                            {
+                                log.Info("Request to: " + url);
+                                log.Info("  received redirect to: " + redirectUri);
+                            }
+
+                            if (autoPathAdjust)
+                            {
+                                // if redirection path points to Highlighter, convert path
+                                if (redirectUri.StartsWith(hlService))
+                                {
+                                    string path = redirectUri.Substring(hlService.Length);
+                                    
+                                    if (highlighterRedirectionOwnPaths.IsMatch(path))
+                                    {
+                                        // if highlighter redirect path matches the regex, we assume the path belongs to highlighter
+                                        redirectUri = context.Request.ApplicationPath + path;
+                                    }
+                                    else
+                                    {
+                                        // otherwise assuming it's something else so returning as is
+                                        redirectUri = path;
+                                    }
+
+                                }
+                            }
+                            else if (!string.IsNullOrWhiteSpace(hlRemotePathPrefix))
+                            {
+                                int ind = redirectUri.IndexOf(hlRemotePathPrefix);
+                                if (ind != -1)
+                                {
+                                    redirectUri = (hlAddAppPathToRedirect ? context.Request.ApplicationPath : "") +
+                                        hlLocalPathPrefix + redirectUri.Substring(ind + hlRemotePathPrefix.Length);
+                                }
+                            }
+
+                            if (log.IsInfoEnabled)
+                                log.Info("Redirect request to: " + redirectUri);
+
+                            response.RedirectLocation = redirectUri;
+                        }
+
                         response.End();
                         return;
                     }
                 }
                 catch (WebException webExc)
                 {
+                    error = webExc;
                     log.Error("Failed request to: " + url);
                     log.Error("Error executing highlighting request: " + webExc.Status.ToString());
                     log.Debug("Error executing highlighting request", webExc);
-                    /*
-                    response.StatusCode = 500;
-                    response.StatusDescription = webExc.Status.ToString();
-                    response.Write(webExc.Response);
-                    response.End();
-                    return;
-                     * */
                 }
             }
             else
@@ -150,6 +180,13 @@ namespace PDFHighlighter
                 {
                     log.Warn("Due to invalid highlighter response redirecting request to: " + altUrl);
                     response.Redirect(altUrl, true);
+                }
+                else if (error != null)
+                {
+                    response.StatusCode = 500;
+                    response.StatusDescription = error.Status.ToString();
+                    //response.Write(error.Response);
+                    response.End();
                 }
                 return;
             }
