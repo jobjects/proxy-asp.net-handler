@@ -22,7 +22,7 @@ namespace PDFHighlighter
         string hlRemotePathPrefix;
         bool hlAddAppPathToRedirect = true;
         bool autoPathAdjust = true;
-        Regex highlighterRedirectionOwnPaths = new Regex("/?doc/|/?viewer/"); // TODO parameter for this
+        Regex highlighterRedirectionOwnPaths = new Regex("/?doc/|/?viewer/|/?hits/"); // TODO parameter for this
 
         public HighlightingProxyHandler()
         {
@@ -39,6 +39,14 @@ namespace PDFHighlighter
             {
                 hlAddAppPathToRedirect = false;
             }
+
+            string highlightingProxyInternalPathRegex = WebConfigurationManager.AppSettings["highlightingProxyInternalPathRegex"];
+            if (string.IsNullOrEmpty(highlightingProxyInternalPathRegex))
+            {
+                highlightingProxyInternalPathRegex = "/?doc/|/?viewer/|/?hits/";
+            }
+            log.Info("For internal path matcher using regex: " + highlightingProxyInternalPathRegex);
+            highlighterRedirectionOwnPaths = new Regex(highlightingProxyInternalPathRegex);
         }
 
         public bool IsReusable
