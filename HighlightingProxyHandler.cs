@@ -22,6 +22,7 @@ namespace PDFHighlighter
         string hlRemotePathPrefix;
         bool hlAddAppPathToRedirect = true;
         bool autoPathAdjust = true;
+        string proxyExternalUrl;
         Regex highlighterRedirectionOwnPaths = new Regex("/?doc/|/?viewer/|/?hits/"); // TODO parameter for this
 
         public HighlightingProxyHandler()
@@ -47,6 +48,8 @@ namespace PDFHighlighter
             }
             log.Info("For internal path matcher using regex: " + highlightingProxyInternalPathRegex);
             highlighterRedirectionOwnPaths = new Regex(highlightingProxyInternalPathRegex);
+
+            proxyExternalUrl = WebConfigurationManager.AppSettings["highlightingProxyExternalUrl"];
         }
 
         public bool IsReusable
@@ -97,6 +100,25 @@ namespace PDFHighlighter
 
                 // Create web request
                 HttpWebRequest webRequest = (HttpWebRequest) WebRequest.Create(new Uri(url));
+
+                string serviceUrlHeaderName = "X-Highlighter-Service-URL";
+                if (proxyExternalUrl != null)
+                {
+                    if (!string.IsNullOrEmpty(proxyExternalUrl))
+                        webRequest.Headers.Add(serviceUrlHeaderName, proxyExternalUrl);
+
+                    log.Warn("Sending hl service url: (conf) " + proxyExternalUrl);
+                }
+                else
+                {
+                    Uri extUrl = context.Request.Url;
+                    string extUrlStr = extUrl.Scheme + "://" + extUrl.Host + (extUrl.Port != 80 && extUrl.Port != 443 ? ":" + extUrl.Port : "") + context.Request.ApplicationPath;
+                    webRequest.Headers.Add(serviceUrlHeaderName, extUrlStr);
+
+                    log.Warn("Sending hl service url: " + extUrlStr);
+                }
+
+                webRequest.Headers.Add("X-Forwarded-For", context.Request.UserHostAddress);
 
                 copyHeadersOfInterestForProxying(context.Request.Headers, webRequest);
                 webRequest.Method = context.Request.HttpMethod;
