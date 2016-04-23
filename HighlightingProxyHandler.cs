@@ -107,7 +107,7 @@ namespace PDFHighlighter
                     if (!string.IsNullOrEmpty(proxyExternalUrl))
                         webRequest.Headers.Add(serviceUrlHeaderName, proxyExternalUrl);
 
-                    log.Warn("Sending hl service url: (conf) " + proxyExternalUrl);
+                    log.Debug("Sending hl service url: (conf) " + proxyExternalUrl);
                 }
                 else
                 {
@@ -115,7 +115,7 @@ namespace PDFHighlighter
                     string extUrlStr = extUrl.Scheme + "://" + extUrl.Host + (extUrl.Port != 80 && extUrl.Port != 443 ? ":" + extUrl.Port : "") + context.Request.ApplicationPath;
                     webRequest.Headers.Add(serviceUrlHeaderName, extUrlStr);
 
-                    log.Warn("Sending hl service url: " + extUrlStr);
+                    log.Debug("Sending hl service url: " + extUrlStr);
                 }
 
                 webRequest.Headers.Add("X-Forwarded-For", context.Request.UserHostAddress);
