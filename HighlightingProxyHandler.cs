@@ -65,6 +65,7 @@ namespace PDFHighlighter
 
             HttpWebResponse serverResponse = null;
             WebException error = null;
+            Exception otherError = null;
 
             // SEND REQUEST TO HIGHLIGHTER...
             if (!string.IsNullOrWhiteSpace(hlService))
@@ -130,6 +131,19 @@ namespace PDFHighlighter
                 // Send the request to the server
                 try
                 {
+                    // copy content body (needed for POST requests)
+                    int contentLength = context.Request.ContentLength;
+                    if (contentLength > 0)
+                    {
+                        MemoryStream ms = new MemoryStream();
+                        context.Request.InputStream.CopyTo(ms);
+                        byte[] data = ms.ToArray();
+                        using(Stream newStream = webRequest.GetRequestStream()) 
+                        {
+                            newStream.Write(data, 0, data.Length);
+                        }
+                    }
+
                     serverResponse = (HttpWebResponse) webRequest.GetResponse();
 
                     // check if redirection 
@@ -194,6 +208,12 @@ namespace PDFHighlighter
                     log.Error("Error executing highlighting request: " + webExc.Status.ToString());
                     log.Debug("Error executing highlighting request", webExc);
                 }
+                catch (Exception exc)
+                {
+                    otherError = exc;
+                    log.Error("Failed request to: " + url);
+                    log.Debug("Error executing highlighting request", exc);
+                }
             }
             else
             {
@@ -211,10 +231,11 @@ namespace PDFHighlighter
                     log.Warn("Due to invalid highlighter response redirecting request to: " + altUrl);
                     response.Redirect(altUrl, true);
                 }
-                else if (error != null)
+                else if (error != null || otherError != null)
                 {
                     response.StatusCode = 500;
-                    response.StatusDescription = error.Status.ToString();
+                    if (error != null)
+                        response.StatusDescription = error.Status.ToString();
                     //response.Write(error.Response);
                     response.End();
                 }
