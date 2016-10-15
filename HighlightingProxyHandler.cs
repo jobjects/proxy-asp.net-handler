@@ -35,6 +35,15 @@ namespace PDFHighlighter
             if (hlLocalPathPrefix != null || hlRemotePathPrefix != null)
                 autoPathAdjust = false;
 
+            string mode = WebConfigurationManager.AppSettings["highlightingProxyMode"];
+            if (mode != null)
+            {
+                autoPathAdjust = "auto".Equals(mode);
+            }
+
+            log.Debug("hlService = " + hlService);
+            log.Debug("autoPathAdjust = " + autoPathAdjust);
+
             string addAppPath = WebConfigurationManager.AppSettings["highlightingProxyAddAppPathToRedirect"];
             if (addAppPath != null && ("false".Equals(addAppPath) || "no".Equals(addAppPath)))
             {
@@ -75,7 +84,15 @@ namespace PDFHighlighter
 
                 if (autoPathAdjust)
                 {
-                    url += context.Request.AppRelativeCurrentExecutionFilePath.Substring(1);
+                    string path = context.Request.AppRelativeCurrentExecutionFilePath;
+                    log.Debug("  AppRelativeCurrentExecutionFilePath = " + path);
+                    if (path.StartsWith("~/"))
+                        path = path.Substring(1);
+                    int offset = 0;
+                    if (path.StartsWith("/") && url.EndsWith("/"))
+                        offset = 1;
+                    log.Debug("  offset = " + offset);
+                    url += path.Substring(offset);
                 }
                 else if (!string.IsNullOrWhiteSpace(hlLocalPathPrefix))
                 {
