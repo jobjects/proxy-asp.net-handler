@@ -20,6 +20,7 @@ Two options:
 1. Compile this project (or get it from the download section) and install as a separate application on your IIS, or
 2. Copy _HighlightingProxyHandler.cs_ to your project and add the handler to _Web.config_.
 
+We recommend installing the handler on path _/highlighter/_ as we also reference this path throughout our documentation.
 
 ## Configuration
 
