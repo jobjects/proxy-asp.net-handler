@@ -17,13 +17,15 @@ namespace PDFHighlighter
         /// web and register it with IIS before being able to use it. For more information
         /// see the following link: http://go.microsoft.com/?linkid=8101007
 
+        private static String defaultInternalPathRegex = "/?doc/|/?viewer/|/?hits/|/?result-document/|/?cached-document/";
+
         string hlService;
         string hlLocalPathPrefix;
         string hlRemotePathPrefix;
         bool hlAddAppPathToRedirect = true;
         bool autoPathAdjust = true;
         string proxyExternalUrl;
-        Regex highlighterRedirectionOwnPaths = new Regex("/?doc/|/?viewer/|/?hits/"); // TODO parameter for this
+        Regex highlighterRedirectionOwnPaths = new Regex(defaultInternalPathRegex);
 
         public HighlightingProxyHandler()
         {
@@ -53,7 +55,7 @@ namespace PDFHighlighter
             string highlightingProxyInternalPathRegex = WebConfigurationManager.AppSettings["highlightingProxyInternalPathRegex"];
             if (string.IsNullOrEmpty(highlightingProxyInternalPathRegex))
             {
-                highlightingProxyInternalPathRegex = "/?doc/|/?viewer/|/?hits/";
+                highlightingProxyInternalPathRegex = defaultInternalPathRegex;
             }
             log.Info("For internal path matcher using regex: " + highlightingProxyInternalPathRegex);
             highlighterRedirectionOwnPaths = new Regex(highlightingProxyInternalPathRegex);
